@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f7fb">
+  <title>Física en acción | Laboratorio interactivo</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <button class="icon-btn" id="menuToggle" aria-label="Abrir menú de navegación" aria-expanded="false" aria-controls="drawer">☰</button>
+    <strong id="pageTitle">Inicio / Guía</strong>
+    <span class="brand">Física en acción · Laboratorio interactivo</span>
+  </header>
+  <div class="overlay" id="overlay"></div>
+  <nav class="drawer" id="drawer" aria-label="Navegación principal" aria-hidden="true">
+    <h2>Explora el laboratorio</h2>
+    <button class="nav-link active" data-view="home"><span>🏠</span> Inicio / Guía</button>
+    <button class="nav-link" data-view="projectile"><span>🎯</span> Movimiento parabólico</button>
+    <button class="nav-link" data-view="vectors"><span>➡️</span> Vectores</button>
+    <button class="nav-link" data-view="circuits"><span>⚡</span> Circuitos eléctricos</button>
+    <p class="footnote" style="padding:16px 10px">Elige una herramienta para aprender haciendo.</p>
+  </nav>
+
+  <main>
+    <section class="view active" id="view-home" aria-labelledby="home-title">
+      <p class="eyebrow">Tu laboratorio, a tu ritmo</p>
+      <h1 id="home-title">La física se entiende mejor cuando la pones en movimiento.</h1>
+      <p class="lead">Explora fenómenos, prueba valores y observa cómo las ecuaciones describen lo que ocurre. Usa los simuladores como apoyo para resolver problemas paso a paso.</p>
+      <div class="guide-grid">
+        <article class="card guide-card accent-blue">
+          <div class="emoji" aria-hidden="true">🎯</div><h2>Movimiento parabólico</h2>
+          <p class="muted">Estudia el vuelo de un proyectil y separa su movimiento horizontal del vertical.</p>
+          <h3>Qué puedes hacer</h3><ul><li>Modificar velocidad, ángulo, altura y gravedad.</li><li>Observar la trayectoria y los vectores de velocidad.</li><li>Comparar lanzamientos o acertar un blanco.</li></ul>
+          <h3>Cómo usarlo</h3><ol class="steps"><li>Ajusta las condiciones iniciales.</li><li>Pulsa «Lanzar» y observa el vuelo.</li><li>Compara los resultados con las fórmulas.</li></ol>
+          <button class="btn primary" data-go="projectile">Abrir simulador</button>
+        </article>
+        <article class="card guide-card accent-green">
+          <div class="emoji" aria-hidden="true">➡️</div><h2>Vectores</h2>
+          <p class="muted">Representa vectores en el plano y explora operaciones fundamentales con su procedimiento.</p>
+          <h3>Qué puedes hacer</h3><ul><li>Editar componentes y arrastrar las puntas.</li><li>Sumar, restar, calcular productos y proyecciones.</li><li>Practicar con problemas aleatorios.</li></ul>
+          <h3>Cómo usarlo</h3><ol class="steps"><li>Agrega de dos a cuatro vectores.</li><li>Elige una operación y revisa el dibujo.</li><li>Lee los pasos o comprueba un reto.</li></ol>
+          <button class="btn green" data-go="vectors">Abrir simulador</button>
+        </article>
+        <article class="card guide-card accent-amber">
+          <div class="emoji" aria-hidden="true">⚡</div><h2>Circuitos eléctricos</h2>
+          <p class="muted">Calcula redes resistivas, resuelve mallas y relaciona voltaje, corriente y potencia.</p>
+          <h3>Qué puedes hacer</h3><ul><li>Analizar resistencias en serie, paralelo o mixtas.</li><li>Ver un esquema y calcular cada componente.</li><li>Practicar Ley de Ohm y leyes de Kirchhoff.</li></ul>
+          <h3>Cómo usarlo</h3><ol class="steps"><li>Elige una herramienta del panel.</li><li>Ingresa valores positivos y unidades.</li><li>Calcula y sigue el procedimiento mostrado.</li></ol>
+          <button class="btn amber" data-go="circuits">Abrir simulador</button>
+        </article>
+      </div>
+      <div class="guide-lower">
+        <article class="card"><h2>Cómo navegar</h2><p class="muted">Pulsa el botón <strong>☰</strong> en la esquina superior izquierda para abrir el menú. Selecciona Inicio/Guía o cualquiera de los simuladores. El menú también se cierra con <kbd>Esc</kbd> o al tocar el fondo oscuro. Tus ajustes permanecen mientras esta página siga abierta.</p></article>
+        <details><summary>Fórmulas clave</summary>
+          <div class="formula-list">
+            <div class="formula"><strong>Movimiento:</strong> x = v₀ cos(θ)t · y = y₀ + v₀ sen(θ)t − ½gt² · v = √(vx² + vy²)</div>
+            <div class="formula"><strong>Vectores:</strong> A + B = (Ax + Bx, Ay + By) · A·B = AxBx + AyBy + AzBz · |A| = √(Ax² + Ay² + Az²)</div>
+            <div class="formula"><strong>Circuitos:</strong> V = IR · P = VI · Rserie = ΣR · 1/Rparalelo = Σ(1/R)</div>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <section class="view accent-blue" id="view-projectile" aria-labelledby="projectile-title">
+      <p class="eyebrow">Simulador · Cinemática</p><h1 id="projectile-title">Movimiento parabólico</h1>
+      <p class="lead">Ajusta el lanzamiento y conecta las componentes de la velocidad con la trayectoria.</p>
+      <div class="tool-layout">
+        <aside class="card controls">
+          <div class="control-group"><label for="speedRange">Velocidad inicial v₀ (m/s)</label><div class="field-row"><input type="range" id="speedRange" min="0" max="100" step="0.1" value="20"><input type="number" id="speedNum" min="0" max="100" step="0.1" value="20" aria-label="Velocidad inicial numérica"></div></div>
+          <div class="control-group"><label for="angleRange">Ángulo θ (°)</label><div class="field-row"><input type="range" id="angleRange" min="0" max="90" step="0.1" value="45"><input type="number" id="angleNum" min="0" max="90" step="0.1" value="45" aria-label="Ángulo numérico"></div></div>
+          <div class="control-group"><label for="heightRange">Altura inicial y₀ (m)</label><div class="field-row"><input type="range" id="heightRange" min="0" max="100" step="0.1" value="0"><input type="number" id="heightNum" min="0" max="100" step="0.1" value="0" aria-label="Altura inicial numérica"></div></div>
+          <div class="control-group"><label for="gravity">Gravedad g (m/s²)</label><select id="gravity"><option value="9.81">Tierra · 9.81</option><option value="1.62">Luna · 1.62</option><option value="3.71">Marte · 3.71</option><option value="24.79">Júpiter · 24.79</option><option value="custom">Personalizada</option></select><input class="hidden" type="number" id="customGravity" min="0.01" step="0.01" value="9.81" aria-label="Gravedad personalizada"></div>
+          <div class="control-group"><label class="inline-check"><input type="checkbox" id="airToggle"> Incluir resistencia del aire</label><div id="dragGroup" class="hidden"><label for="dragK">Coeficiente k (s⁻¹)</label><input type="number" id="dragK" min="0" step="0.01" value="0.08"></div></div>
+          <div class="control-group"><label class="inline-check"><input type="checkbox" id="oldTrajectories"> Mostrar trayectorias anteriores</label><label class="inline-check"><input type="checkbox" id="showVectors" checked> Mostrar vectores de velocidad</label></div>
+          <div class="control-group"><label for="simSpeed">Velocidad de simulación</label><select id="simSpeed"><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select></div>
+          <div class="button-row"><button class="btn primary" id="launchBtn">Lanzar</button><button class="btn" id="pauseBtn">Pausar</button><button class="btn" id="resetProjectile">Reiniciar</button></div>
+          <div class="control-group"><label class="inline-check"><input type="checkbox" id="challengeToggle"> Modo reto: acertar un blanco</label><button class="btn small" id="newTarget">Nuevo blanco</button><p class="footnote" id="targetText"></p></div>
+          <p class="message" id="projectileMsg" role="status" aria-live="polite"></p>
+        </aside>
+        <div class="workspace">
+          <div class="card canvas-card"><canvas id="projectileCanvas" class="projectile-canvas" aria-label="Animación de trayectoria del proyectil"></canvas></div>
+          <article class="card"><h2>Resultados del lanzamiento</h2><div class="stats" id="projectileStats"></div></article>
+          <article class="card"><h2>Estado instantáneo</h2><div class="stats" id="instantStats"></div></article>
+          <details><summary>Fórmulas (sin resistencia del aire)</summary><div class="formula-list"><div class="formula">x = v₀ cos(θ) · t</div><div class="formula">y = y₀ + v₀ sen(θ) · t − ½gt²</div><div class="formula">t<sub>vuelo</sub> = [v₀ sen(θ) + √((v₀ sen(θ))² + 2gy₀)] / g</div><div class="formula">H<sub>máx</sub> = y₀ + (v₀ sen(θ))² / (2g) · R = v₀ cos(θ) · t<sub>vuelo</sub></div></div></details>
+        </div>
+      </div>
+    </section>
+
+    <section class="view accent-green" id="view-vectors" aria-labelledby="vectors-title">
+      <p class="eyebrow">Laboratorio · Álgebra vectorial</p><h1 id="vectors-title">Análisis de vectores</h1><p class="lead">Edita componentes, mueve las flechas en el plano y observa cómo cambia la solución.</p>
+      <div class="tool-layout">
+        <aside class="card controls">
+          <div class="control-group"><label for="vectorFormat">Formato de entrada</label><select id="vectorFormat"><option value="components">Componentes (x, y, z)</option><option value="polar">Magnitud + ángulo (2D)</option></select><label class="inline-check"><input type="checkbox" id="vector3d"> Mostrar componentes 3D</label></div>
+          <div class="control-group"><h3>Vectores</h3><div id="vectorRows"></div><div class="button-row"><button class="btn small" id="addVector">＋ Añadir vector</button><button class="btn small" id="removeVector">− Quitar último</button></div></div>
+          <div class="control-group"><label for="vectorOperation">Operación</label><select id="vectorOperation"><option value="sum">Suma</option><option value="subtract">Resta (A − B)</option><option value="scale">Multiplicación por escalar</option><option value="dot">Producto punto (A · B)</option><option value="cross">Producto cruz (A × B)</option><option value="angle">Ángulo entre A y B</option><option value="projection">Proyección de A sobre B</option><option value="unit">Vector unitario de A</option><option value="magnitude">Magnitud de A</option></select><div id="scalarGroup" class="hidden"><label for="vectorScalar">Escalar</label><input type="number" id="vectorScalar" step="0.1" value="2"></div></div>
+          <div class="control-group"><label for="vectorMethod">Método gráfico</label><select id="vectorMethod"><option value="polygon">Polígono (cabeza con cola)</option><option value="parallelogram">Paralelogramo</option></select><label class="inline-check"><input type="checkbox" id="componentsToggle" checked> Mostrar componentes</label></div>
+          <p class="footnote">Consejo: arrastra la punta de una flecha para editarla. El lienzo representa los componentes x e y.</p>
+          <div class="control-group"><h3>Problema aleatorio</h3><button class="btn green" id="vectorChallenge">Generar problema aleatorio</button><p id="vectorQuestion" class="muted"></p><label for="vectorAnswer">Tu respuesta (componentes x, y separados por coma)</label><input type="text" id="vectorAnswer" placeholder="p. ej. 3, 5"><button class="btn small" id="checkVectorAnswer" style="margin-top:8px">Comprobar respuesta</button><p id="vectorScore" class="footnote">Aciertos: 0</p><p id="vectorMsg" class="message" role="status" aria-live="polite"></p></div>
+        </aside>
+        <div class="workspace">
+          <div class="card canvas-card"><canvas id="vectorCanvas" aria-label="Plano cartesiano con vectores interactivos"></canvas></div>
+          <article class="card"><h2>Solución paso a paso</h2><div id="vectorSolution" class="solution"></div></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="view accent-amber" id="view-circuits" aria-labelledby="circuits-title">
+      <p class="eyebrow">Laboratorio · Electricidad</p><h1 id="circuits-title">Circuitos eléctricos</h1><p class="lead">Calcula redes resistivas, resuelve mallas o explora las relaciones entre V, I, R y P.</p>
+      <div class="tabs" role="tablist" aria-label="Herramientas de circuitos">
+        <button class="tab-btn active" data-tab="resistors" role="tab" aria-selected="true">Resistencias</button><button class="tab-btn" data-tab="kirchhoff" role="tab" aria-selected="false">Kirchhoff</button><button class="tab-btn" data-tab="ohm" role="tab" aria-selected="false">Ley de Ohm</button><button class="tab-btn" data-tab="circuitQuiz" role="tab" aria-selected="false">Problemas</button>
+      </div>
+      <div id="panel-resistors" class="circuit-panel tool-layout">
+        <aside class="card controls">
+          <div class="control-group"><label for="circuitConfig">Configuración</label><select id="circuitConfig"><option value="series">Serie</option><option value="parallel">Paralelo</option><option value="mixed">Mixto (dos ramas en paralelo, resto en serie)</option></select></div>
+          <div class="control-group"><label for="sourceVoltage">Voltaje de la fuente (V)</label><input type="number" id="sourceVoltage" min="0.001" step="0.1" value="12"></div>
+          <div class="control-group"><label>Número de resistencias</label><select id="resistorCount"><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option></select><div id="resistorInputs" class="circuit-grid"></div></div>
+          <label class="inline-check"><input type="checkbox" id="currentAnimation"> Animar flujo de corriente</label>
+          <button class="btn amber" id="calculateCircuit">Calcular circuito</button><p class="message" id="circuitMsg" role="status" aria-live="polite"></p>
+        </aside>
+        <div class="workspace"><div class="card canvas-card"><canvas id="circuitCanvas" aria-label="Diagrama esquemático del circuito"></canvas></div><article class="card"><h2>Resultados</h2><div id="circuitResults"></div></article><article class="card"><h2>Procedimiento</h2><div id="circuitSolution" class="solution"></div></article></div>
+      </div>
+      <div id="panel-kirchhoff" class="circuit-panel tool-layout hidden">
+        <aside class="card controls"><h2>Dos mallas</h2><p class="muted">Ingresa resistencias compartidas entre mallas y las fem de cada lazo.</p><label for="meshR1">R₁ (Ω)</label><input type="number" id="meshR1" min="0.001" value="10"><label for="meshR2">R₂ (Ω)</label><input type="number" id="meshR2" min="0.001" value="15"><label for="meshShared">Resistencia compartida R₃ (Ω)</label><input type="number" id="meshShared" min="0.001" value="5"><label for="meshE1">Fem ε₁ (V)</label><input type="number" id="meshE1" value="12"><label for="meshE2">Fem ε₂ (V)</label><input type="number" id="meshE2" value="6"><button id="solveMesh" class="btn amber">Resolver mallas</button></aside>
+        <div class="workspace"><article class="card"><h2>Corrientes de malla</h2><div class="stats" id="meshResults"></div></article><article class="card"><h2>Eliminación gaussiana</h2><div id="meshSolution" class="solution"></div></article></div>
+      </div>
+      <div id="panel-ohm" class="circuit-panel tool-layout hidden">
+        <aside class="card controls"><h2>Calculadora V-I-R-P</h2><p class="muted">Ingresa exactamente dos cantidades; calcularemos las otras dos suponiendo un elemento resistivo.</p><div id="ohmFields"></div><button id="calculateOhm" class="btn amber">Calcular variables</button><p id="ohmMsg" class="message" role="status" aria-live="polite"></p></aside>
+        <div class="workspace"><article class="card"><h2>Resultado</h2><div id="ohmResults" class="solution"></div><p class="footnote">Relaciones usadas: V = IR, P = VI, P = I²R, P = V²/R.</p></article></div>
+      </div>
+      <div id="panel-circuitQuiz" class="circuit-panel hidden">
+        <article class="card" style="max-width:760px"><h2>Problema aleatorio de circuitos</h2><button id="newCircuitQuestion" class="btn amber">Generar problema aleatorio</button><p id="circuitQuestion" class="muted"></p><label for="circuitAnswer">Resistencia equivalente (Ω)</label><input id="circuitAnswer" type="number" step="any" placeholder="Ingresa el resultado"><button id="checkCircuitAnswer" class="btn small" style="margin-top:8px">Comprobar respuesta</button><p id="circuitQuizMsg" class="message" role="status" aria-live="polite"></p><p id="circuitScore" class="footnote">Aciertos: 0</p><div id="circuitQuizSolution" class="solution"></div></article>
+      </div>
+    </section>
+  </main>
+  <script src="script.js" defer></script>
+</body>
+</html>
