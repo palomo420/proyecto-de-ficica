@@ -1,4 +1,3 @@
-
 "use strict";
     // Utilidades comunes: formato, lienzos de alta densidad y dibujo de flechas.
     const Utils = {
@@ -32,9 +31,11 @@
       css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
     };
 
+    let oscillatorSim = {resize() {}, stop() {}};
+
     // Enrutador de vistas y comportamiento accesible del menú lateral.
     const Router = (() => {
-      const titles = { home:"Inicio / Guía", projectile:"Movimiento parabólico", vectors:"Vectores", circuits:"Circuitos eléctricos" };
+      const titles = { home:"Inicio / Guía", projectile:"Movimiento parabólico", oscillator:"Péndulo y masa-resorte", vectors:"Vectores", circuits:"Circuitos eléctricos" };
       let current = "home";
       function go(name) {
         if (!titles[name]) return;
@@ -44,6 +45,8 @@
         document.getElementById("pageTitle").textContent = titles[name];
         Menu.close();
         if (name === "projectile") ProjectileSim.resize();
+        if (name === "oscillator") oscillatorSim.resize();
+        else oscillatorSim.stop();
         if (name === "vectors") VectorLab.draw();
         if (name === "circuits") CircuitLab.resize();
       }
@@ -168,6 +171,147 @@
       return {resize,draw};
     })();
 
+    // Modelo armónico ideal para péndulo de ángulo pequeño y masa-resorte.
+    oscillatorSim = (() => {
+      const $ = id => document.getElementById(id);
+      const canvas = $("oscillatorCanvas"), graph = $("oscillatorGraph");
+      let time = 0, running = false, lastFrame = 0, frameId = 0;
+
+      function parameters() {
+        const kind = $("oscillatorType").value, mass = Number($("oscillatorMass").value);
+        const length = Number($("pendulumLength").value), angle = Number($("pendulumAngle").value);
+        const gravity = Number($("oscillatorGravity").value), spring = Number($("springConstant").value);
+        const amplitude = Number($("springAmplitude").value);
+        if (!Number.isFinite(mass) || mass < 0.1 || mass > 20) return null;
+        if (kind === "pendulum" && (!Number.isFinite(length) || length < 0.1 || length > 5 ||
+            !Number.isFinite(angle) || angle < 1 || angle > 30 || !Number.isFinite(gravity) || gravity <= 0)) return null;
+        if (kind === "spring" && (!Number.isFinite(spring) || spring < 0.1 || spring > 100 ||
+            !Number.isFinite(amplitude) || amplitude < 0.01 || amplitude > 1)) return null;
+        const omega = kind === "pendulum" ? Math.sqrt(gravity / length) : Math.sqrt(spring / mass);
+        return {kind, mass, length, angle: angle * Math.PI / 180, gravity, spring, amplitude, omega, period: 2 * Math.PI / omega};
+      }
+
+      function sample(p, t) {
+        if (p.kind === "pendulum") {
+          const theta = p.angle * Math.cos(p.omega * t), angularVelocity = -p.angle * p.omega * Math.sin(p.omega * t);
+          const position = p.length * theta, velocity = p.length * angularVelocity;
+          return {position, velocity, kinetic: 0.5 * p.mass * velocity ** 2, potential: 0.5 * p.mass * p.gravity * p.length * theta ** 2, theta};
+        }
+        const position = p.amplitude * Math.cos(p.omega * t), velocity = -p.amplitude * p.omega * Math.sin(p.omega * t);
+        return {position, velocity, kinetic: 0.5 * p.mass * velocity ** 2, potential: 0.5 * p.spring * position ** 2, theta: 0};
+      }
+
+      function updateStats(p) {
+        if (!p) { $("oscillatorStats").innerHTML = ""; return; }
+        const state = sample(p, time);
+        const values = [
+          ["Periodo", `${Utils.fmt(p.period)} s`],
+          ["Frecuencia angular", `${Utils.fmt(p.omega)} rad/s`],
+          ["Posición", `${Utils.fmt(state.position)} m`],
+          ["Velocidad", `${Utils.fmt(state.velocity)} m/s`],
+          ...(p.kind === "pendulum" ? [["Ángulo", `${Utils.fmt(state.theta * 180 / Math.PI)}°`]] : []),
+          ["Energía cinética", `${Utils.fmt(state.kinetic)} J`],
+          ["Energía potencial", `${Utils.fmt(state.potential)} J`],
+          ["Energía mecánica", `${Utils.fmt(state.kinetic + state.potential)} J`]
+        ];
+        $("oscillatorStats").innerHTML = values.map(([name, value]) => `<div class="stat"><span>${name}</span><strong>${value}</strong></div>`).join("");
+      }
+
+      function drawSystem(p) {
+        const {ctx: c, w, h} = Utils.setupCanvas(canvas);
+        c.clearRect(0, 0, w, h);
+        if (!p) {
+          c.fillStyle = Utils.css("--danger"); c.font = "14px system-ui"; c.fillText("Revisa los valores ingresados.", 18, 32);
+          return;
+        }
+        const state = sample(p, time);
+        c.strokeStyle = Utils.css("--line"); c.fillStyle = Utils.css("--text"); c.lineWidth = 2;
+        if (p.kind === "pendulum") {
+          const pivot = {x: w / 2, y: Math.max(38, h * 0.13)}, lengthPx = Math.min(h * 0.62, w * 0.38);
+          const bob = {x: pivot.x + lengthPx * Math.sin(state.theta), y: pivot.y + lengthPx * Math.cos(state.theta)};
+          c.beginPath(); c.moveTo(pivot.x - 65, pivot.y); c.lineTo(pivot.x + 65, pivot.y); c.stroke();
+          c.strokeStyle = Utils.css("--blue"); c.lineWidth = 3; c.beginPath(); c.moveTo(pivot.x, pivot.y); c.lineTo(bob.x, bob.y); c.stroke();
+          c.fillStyle = Utils.css("--amber"); c.beginPath(); c.arc(bob.x, bob.y, 17, 0, Math.PI * 2); c.fill();
+          c.fillStyle = Utils.css("--text"); c.beginPath(); c.arc(pivot.x, pivot.y, 5, 0, Math.PI * 2); c.fill();
+          c.strokeStyle = Utils.css("--muted"); c.setLineDash([4, 5]); c.beginPath(); c.moveTo(pivot.x, pivot.y); c.lineTo(pivot.x, pivot.y + lengthPx); c.stroke(); c.setLineDash([]);
+          c.fillStyle = Utils.css("--muted"); c.font = "13px system-ui"; c.fillText(`L = ${Utils.fmt(p.length)} m`, pivot.x + 10, pivot.y + lengthPx * 0.56);
+        } else {
+          const wallX = w * 0.14, restX = w * 0.64, centerY = h * 0.52;
+          const scale = Math.min(w * 0.35, h * 0.7), blockX = restX + state.position / p.amplitude * scale * 0.42;
+          c.strokeStyle = Utils.css("--muted"); c.beginPath(); c.moveTo(wallX, centerY - 65); c.lineTo(wallX, centerY + 65); c.stroke();
+          c.setLineDash([4, 5]); c.beginPath(); c.moveTo(restX, centerY - 55); c.lineTo(restX, centerY + 55); c.stroke(); c.setLineDash([]);
+          const start = wallX, end = blockX, coils = 12, width = end - start;
+          c.strokeStyle = Utils.css("--blue"); c.lineWidth = 3; c.beginPath(); c.moveTo(start, centerY);
+          for (let i = 1; i < coils; i++) c.lineTo(start + width * i / coils, centerY + (i % 2 ? -14 : 14));
+          c.lineTo(end, centerY); c.stroke();
+          c.fillStyle = Utils.css("--amber"); c.fillRect(blockX, centerY - 27, 52, 54);
+          c.fillStyle = Utils.css("--text"); c.font = "13px system-ui"; c.fillText(`x = ${Utils.fmt(state.position)} m`, wallX, centerY + 94);
+        }
+        c.fillStyle = Utils.css("--muted"); c.font = "13px system-ui"; c.fillText(`t = ${Utils.fmt(time, 2)} s`, 16, h - 16);
+      }
+
+      function drawGraph(p) {
+        const {ctx: c, w, h} = Utils.setupCanvas(graph);
+        c.clearRect(0, 0, w, h);
+        if (!p) return;
+        const pad = {left: 48, right: 18, top: 20, bottom: 32}, width = w - pad.left - pad.right, height = h - pad.top - pad.bottom;
+        const span = 2 * p.period, amp = p.kind === "pendulum" ? p.length * p.angle : p.amplitude;
+        const x = t => pad.left + t / span * width, y = q => pad.top + height * (0.5 - q / (2 * amp));
+        c.strokeStyle = Utils.css("--line"); c.fillStyle = Utils.css("--muted"); c.lineWidth = 1; c.font = "11px system-ui";
+        for (let i = 0; i <= 4; i++) {
+          const gx = pad.left + width * i / 4;
+          c.beginPath(); c.moveTo(gx, pad.top); c.lineTo(gx, h - pad.bottom); c.stroke();
+          c.fillText(Utils.fmt(span * i / 4, 1), gx - 8, h - 10);
+        }
+        c.beginPath(); c.moveTo(pad.left, y(0)); c.lineTo(w - pad.right, y(0)); c.stroke();
+        c.fillStyle = Utils.css("--muted"); c.fillText("t (s)", w - 38, h - 10); c.fillText("x (m)", 7, pad.top + 4);
+        c.strokeStyle = Utils.css("--blue"); c.lineWidth = 2.5; c.beginPath();
+        for (let i = 0; i <= 120; i++) {
+          const t = span * i / 120, position = sample(p, t).position;
+          i ? c.lineTo(x(t), y(position)) : c.moveTo(x(t), y(position));
+        }
+        c.stroke();
+        const phase = time % span, current = sample(p, phase).position;
+        c.strokeStyle = Utils.css("--amber"); c.setLineDash([4, 4]); c.beginPath(); c.moveTo(x(phase), pad.top); c.lineTo(x(phase), h - pad.bottom); c.stroke(); c.setLineDash([]);
+        c.fillStyle = Utils.css("--amber"); c.beginPath(); c.arc(x(phase), y(current), 5, 0, Math.PI * 2); c.fill();
+      }
+
+      function render() {
+        const p = parameters();
+        if (!p && running) stop();
+        $("oscillatorMessage").textContent = p ? "" : "Revisa que los valores estén dentro de los límites indicados.";
+        updateStats(p); drawSystem(p); drawGraph(p);
+      }
+      function tick(now) {
+        if (!running) return;
+        if (lastFrame) time += Math.min((now - lastFrame) / 1000, 0.05);
+        lastFrame = now; render(); frameId = requestAnimationFrame(tick);
+      }
+      function start() {
+        if (running) { stop(); $("oscillatorStart").textContent = "Reanudar"; return; }
+        if (!parameters()) { render(); return; }
+        running = true; lastFrame = 0; $("oscillatorStart").textContent = "Pausar"; frameId = requestAnimationFrame(tick);
+      }
+      function stop() {
+        running = false; lastFrame = 0; cancelAnimationFrame(frameId); $("oscillatorStart").textContent = "Iniciar";
+      }
+      function reset() { stop(); time = 0; render(); }
+      $("oscillatorStart").addEventListener("click", start);
+      $("oscillatorReset").addEventListener("click", reset);
+      $("oscillatorType").addEventListener("change", () => {
+        $("pendulumControls").classList.toggle("hidden", $("oscillatorType").value !== "pendulum");
+        $("springControls").classList.toggle("hidden", $("oscillatorType").value !== "spring");
+        reset();
+      });
+      ["oscillatorMass", "pendulumLength", "pendulumAngle", "oscillatorGravity", "springConstant", "springAmplitude"].forEach(id => {
+        $(id).addEventListener("input", reset);
+        $(id).addEventListener("change", reset);
+      });
+      window.addEventListener("resize", render);
+      render();
+      return {resize: render, stop};
+    })();
+
     // Editor de vectores, cálculo vectorial, dibujo y verificación de ejercicios.
     const VectorLab = (() => {
       const colors=["#178b64","#2878e5","#bf7900","#b149bd"], names=["A","B","C","D"];
@@ -240,7 +384,180 @@
     const CircuitLab = (() => {
       const $=id=>document.getElementById(id), canvas=$("circuitCanvas");
       let lastCircuit=null, animationFrame=0, quiz=null, score=0;
-      function resize(){if(!$("panel-resistors").classList.contains("hidden"))drawCircuit();}
+      const builderCanvas=$("builderCanvas");
+      const builderParts=[];
+      let builderResult=null, builderAnimationFrame=0, nextPartId=1;
+      function resize(){
+        if(!$("panel-resistors").classList.contains("hidden"))drawCircuit();
+        if(!$("panel-builder").classList.contains("hidden"))drawBuilder();
+      }
+      function renderBuilderParts(){
+        const list=$("builderComponents");
+        if(!builderParts.length){
+          list.innerHTML='<p class="footnote">Todavía no hay componentes. Usa los botones para empezar.</p>';
+          drawBuilder();
+          return;
+        }
+        list.innerHTML=builderParts.map((part,index)=>`<div class="builder-row">
+          <label for="builderPart${part.id}">${part.type==="bulb"?"Foco":"Resistencia"} ${index+1} (Ω)</label>
+          <div class="resistor-field"><input id="builderPart${part.id}" type="number" min="0.001" step="any" value="${Number.isFinite(part.resistance)?part.resistance:""}" data-builder-part="${part.id}" aria-label="Resistencia del componente ${index+1} en ohmios">
+          <button class="delete-btn" type="button" data-remove-builder-part="${part.id}" aria-label="Quitar componente ${index+1}">×</button></div>
+        </div>`).join("");
+        drawBuilder();
+      }
+      function clearBuilderResults(){
+        builderResult=null;
+        $("builderResults").innerHTML="";
+        $("builderComponentResults").innerHTML="";
+        $("builderSolution").textContent="Agrega al menos un componente y pulsa «Simular circuito».";
+      }
+      function simulateBuilder(){
+        const voltage=Number($("builderVoltage").value), config=$("builderConfig").value, msg=$("builderMsg");
+        const resistances=builderParts.map(part=>part.resistance);
+        if(!builderParts.length){msg.textContent="Agrega al menos una resistencia o un foco.";clearBuilderResults();drawBuilder();return;}
+        if(!Number.isFinite(voltage)||voltage<=0||resistances.some(value=>!Number.isFinite(value)||value<=0)){
+          msg.textContent="Ingresa un voltaje positivo y resistencias mayores que cero.";
+          clearBuilderResults();drawBuilder();return;
+        }
+        const isOn=$("builderSwitch").checked;
+        let equivalent;
+        if(config==="series")equivalent=resistances.reduce((sum,value)=>sum+value,0);
+        else {
+          const conductance=resistances.reduce((sum,value)=>sum+1/value,0);
+          equivalent=1/conductance;
+        }
+        const totalCurrent=isOn?voltage/equivalent:0;
+        const rows=builderParts.map((part,index)=>{
+          const current=isOn?(config==="series"?totalCurrent:voltage/part.resistance):0;
+          const drop=isOn?(config==="series"?current*part.resistance:voltage):0;
+          return {name:`${part.type==="bulb"?"Foco":"Resistencia"} ${index+1}`,resistance:part.resistance,voltage:drop,current,power:drop*current,type:part.type};
+        });
+        if(!Number.isFinite(equivalent)||!Number.isFinite(totalCurrent)||rows.some(row=>![row.voltage,row.current,row.power].every(Number.isFinite))){
+          msg.textContent="Esos valores están fuera del rango que puede calcular el simulador.";
+          clearBuilderResults();drawBuilder();return;
+        }
+        builderResult={voltage,config,equivalent,totalCurrent,rows,isOn};
+        msg.textContent="";
+        $("builderResults").innerHTML=`<div class="stat"><span>Resistencia equivalente</span><strong>${isOn?Utils.eng(equivalent):"Circuito abierto"}</strong></div>
+          <div class="stat"><span>Corriente total</span><strong>${Utils.eng(totalCurrent,"A")}</strong></div>
+          <div class="stat"><span>Voltaje de la pila</span><strong>${Utils.eng(voltage,"V")}</strong></div>
+          <div class="stat"><span>Potencia total</span><strong>${Utils.eng(voltage*totalCurrent,"W")}</strong></div>`;
+        $("builderComponentResults").innerHTML=`<table><thead><tr><th>Componente</th><th>R</th><th>V</th><th>I</th><th>P</th></tr></thead><tbody>${rows.map(row=>`<tr><td>${row.name}</td><td>${Utils.eng(row.resistance)}</td><td>${Utils.eng(row.voltage,"V")}</td><td>${Utils.eng(row.current,"A")}</td><td>${Utils.eng(row.power,"W")}</td></tr>`).join("")}</tbody></table>`;
+        const formula=config==="series"
+          ?`Req = ${resistances.map(value=>Utils.eng(value)).join(" + ")} = ${Utils.eng(equivalent)}.\nEn serie, la corriente es igual en todos los componentes.`
+          :`1/Req = ${resistances.map(value=>`1/${Utils.eng(value)}`).join(" + ")}; Req = ${Utils.eng(equivalent)}.\nEn paralelo, cada rama tiene el voltaje de la pila.`;
+        $("builderSolution").textContent=`${formula}\n${isOn
+          ?`Ley de Ohm: I = V/Req = ${Utils.eng(voltage,"V")}/${Utils.eng(equivalent)} = ${Utils.eng(totalCurrent,"A")}.\nLa corriente convencional sale del polo positivo de la pila.`
+          :"El interruptor está abierto: no hay un camino cerrado, así que la corriente es cero y los focos están apagados."}`;
+        $("builderSwitchState").textContent=isOn?"encendido":"apagado";
+        drawBuilder();
+      }
+      function addBuilderPart(type){
+        if(builderParts.length>=6){$("builderMsg").textContent="Puedes agregar hasta seis componentes.";return;}
+        builderParts.push({id:nextPartId++,type,resistance:type==="bulb"?20:10});
+        $("builderMsg").textContent="";
+        renderBuilderParts();
+        if(builderResult)simulateBuilder();
+      }
+      $("addBuilderResistor").addEventListener("click",()=>addBuilderPart("resistor"));
+      $("addBuilderBulb").addEventListener("click",()=>addBuilderPart("bulb"));
+      $("clearBuilder").addEventListener("click",()=>{
+        builderParts.length=0;
+        $("builderSwitch").checked=false;
+        $("builderSwitchState").textContent="apagado";
+        $("builderMsg").textContent="";
+        clearBuilderResults();
+        renderBuilderParts();
+      });
+      $("builderComponents").addEventListener("click",event=>{
+        const button=event.target.closest("[data-remove-builder-part]");
+        if(!button)return;
+        const index=builderParts.findIndex(part=>part.id===Number(button.dataset.removeBuilderPart));
+        if(index>=0)builderParts.splice(index,1);
+        $("builderMsg").textContent="";
+        renderBuilderParts();
+        if(builderResult)simulateBuilder();
+      });
+      $("builderComponents").addEventListener("change",event=>{
+        const input=event.target.closest("[data-builder-part]");
+        if(!input)return;
+        const part=builderParts.find(item=>item.id===Number(input.dataset.builderPart));
+        if(part)part.resistance=Number(input.value);
+        simulateBuilder();
+      });
+      $("builderVoltage").addEventListener("change",()=>{if(builderResult)simulateBuilder();});
+      $("builderConfig").addEventListener("change",()=>{if(builderResult)simulateBuilder();});
+      $("builderSwitch").addEventListener("change",()=>{
+        $("builderSwitchState").textContent=$("builderSwitch").checked?"encendido":"apagado";
+        if(builderParts.length)simulateBuilder();else drawBuilder();
+      });
+      $("builderAnimation").addEventListener("change",drawBuilder);
+      $("simulateBuilder").addEventListener("click",simulateBuilder);
+      function drawBuilder(){
+        const {ctx:c,w,h}=Utils.setupCanvas(builderCanvas),fg=Utils.css("--text"),wire=Utils.css("--muted"),accent=Utils.css("--amber");
+        c.clearRect(0,0,w,h);
+        if(!builderParts.length){
+          c.fillStyle=wire;c.font="15px system-ui";c.textAlign="center";
+          c.fillText("Tu circuito está vacío. Agrega una resistencia o un foco para empezar.",w/2,h/2);
+          c.textAlign="start";cancelAnimationFrame(builderAnimationFrame);return;
+        }
+        const config=$("builderConfig").value,isOn=$("builderSwitch").checked,center=h/2,left=44,right=w-30;
+        const top=68,bottom=h-48,sourceX=left+8;
+        c.strokeStyle=fg;c.lineWidth=2;c.beginPath();
+        if(config==="series"){
+          c.moveTo(sourceX,top);c.lineTo(right,top);c.lineTo(right,bottom);c.lineTo(sourceX,bottom);
+          c.moveTo(sourceX,top);c.lineTo(sourceX,center-14);c.moveTo(sourceX,center+14);c.lineTo(sourceX,bottom);
+        }else{
+          c.moveTo(sourceX,top);c.lineTo(right,top);c.moveTo(sourceX,bottom);c.lineTo(right,bottom);
+          c.moveTo(sourceX,top);c.lineTo(sourceX,center-14);c.moveTo(sourceX,center+14);c.lineTo(sourceX,bottom);
+        }
+        c.stroke();
+        c.strokeStyle=accent;c.lineWidth=3;c.beginPath();
+        c.moveTo(sourceX-9,center-6);c.lineTo(sourceX+9,center-6);
+        c.moveTo(sourceX-5,center+6);c.lineTo(sourceX+5,center+6);c.stroke();
+        c.fillStyle=fg;c.font="12px system-ui";c.fillText(`${Utils.fmt(Number($("builderVoltage").value))} V`,sourceX+13,center+4);
+        if(config==="series"){
+          const gap=(right-sourceX)/(builderParts.length+1);
+          builderParts.forEach((part,index)=>drawBuilderPart(c,sourceX+gap*(index+1),top,part,index,isOn,false));
+        }else{
+          const gap=(bottom-top)/(builderParts.length+1);
+          builderParts.forEach((part,index)=>{
+            const y=top+gap*(index+1),x=(sourceX+right)/2;
+            c.strokeStyle=fg;c.beginPath();c.moveTo(sourceX,y);c.lineTo(x-25,y);c.moveTo(x+25,y);c.lineTo(right,y);c.stroke();
+            drawBuilderPart(c,x,y,part,index,isOn,true);
+          });
+        }
+        c.fillStyle=wire;c.font="12px system-ui";c.fillText(isOn?"Interruptor cerrado":"Interruptor abierto",left,20);
+        if($("builderAnimation").checked&&isOn){
+          const travel=Math.max(1,right-sourceX),phase=(performance.now()/24)%travel;
+          c.fillStyle=accent;c.beginPath();c.arc(sourceX+phase,top,4,0,Math.PI*2);c.fill();
+          cancelAnimationFrame(builderAnimationFrame);builderAnimationFrame=requestAnimationFrame(drawBuilder);
+        }else cancelAnimationFrame(builderAnimationFrame);
+      }
+      function drawBuilderPart(c,x,y,part,index,isOn,vertical){
+        c.save();c.translate(x,y);if(vertical)c.rotate(Math.PI/2);
+        c.strokeStyle=Utils.css("--text");c.lineWidth=2;c.beginPath();
+        if(part.type==="bulb"){
+          const radius=13;c.moveTo(-25,0);c.lineTo(-radius,0);c.moveTo(radius,0);c.lineTo(25,0);c.stroke();
+          c.beginPath();c.arc(0,0,radius,0,Math.PI*2);
+          const row=builderResult&&builderResult.rows.find(item=>item.name===`${part.type==="bulb"?"Foco":"Resistencia"} ${index+1}`);
+          if(isOn&&row&&row.power>0){c.shadowColor="#ffc928";c.shadowBlur=Math.min(28,8+row.power*3);c.fillStyle="#ffd84d";c.fill();}
+          c.stroke();c.shadowBlur=0;c.strokeStyle="#8b6b13";c.lineWidth=1.5;c.beginPath();c.moveTo(-5,-6);c.lineTo(5,6);c.moveTo(-5,6);c.lineTo(5,-6);c.stroke();
+        }else{
+          c.moveTo(-25,0);c.lineTo(-18,0);c.lineTo(-12,-8);c.lineTo(-4,8);c.lineTo(4,-8);c.lineTo(12,8);c.lineTo(18,0);c.lineTo(25,0);c.stroke();
+        }
+        c.restore();
+        c.fillStyle=Utils.css("--text");c.font="11px system-ui";
+        if(vertical){
+          c.textAlign="left";
+          c.fillText(`${part.type==="bulb"?"F":"R"}${index+1}: ${Number.isFinite(part.resistance)?Utils.eng(part.resistance):"—"}`,x+31,y+4);
+        }else{
+          c.textAlign="center";
+          c.fillText(`${part.type==="bulb"?"Foco":"R"}${index+1}`,x,y-18);
+          c.fillStyle=Utils.css("--muted");c.fillText(Number.isFinite(part.resistance)?Utils.eng(part.resistance):"—",x,y+25);
+        }
+        c.textAlign="start";
+      }
       function buildResistorInputs(){
         const count=Number($("resistorCount").value);
         $("resistorInputs").innerHTML=Array.from({length:count},(_,i)=>`<div><label for="res${i}">R${i+1}</label><div class="resistor-field"><input id="res${i}" type="number" min="0.001" step="any" value="${i===0?10:20}" aria-label="Valor resistencia ${i+1}"><select id="unit${i}" aria-label="Unidad resistencia ${i+1}"><option value="1">Ω</option><option value="1000">kΩ</option><option value="1000000">MΩ</option></select></div></div>`).join("");
@@ -270,7 +587,7 @@
       }
       $("calculateCircuit").addEventListener("click",calculateResistors);
       $("currentAnimation").addEventListener("change",drawCircuit);
-      document.querySelectorAll(".tab-btn").forEach(btn=>btn.addEventListener("click",()=>{document.querySelectorAll(".tab-btn").forEach(b=>{b.classList.toggle("active",b===btn);b.setAttribute("aria-selected",b===btn?"true":"false");});document.querySelectorAll(".circuit-panel").forEach(p=>p.classList.toggle("hidden",p.id!==`panel-${btn.dataset.tab}`));if(btn.dataset.tab==="resistors")drawCircuit();}));
+      document.querySelectorAll(".tab-btn").forEach(btn=>btn.addEventListener("click",()=>{document.querySelectorAll(".tab-btn").forEach(b=>{b.classList.toggle("active",b===btn);b.setAttribute("aria-selected",b===btn?"true":"false");});document.querySelectorAll(".circuit-panel").forEach(p=>p.classList.toggle("hidden",p.id!==`panel-${btn.dataset.tab}`));if(btn.dataset.tab==="resistors")drawCircuit();if(btn.dataset.tab==="builder")drawBuilder();}));
       function drawCircuit(){
         const {ctx:c,w,h}=Utils.setupCanvas(canvas), fg=Utils.css("--text"), line=Utils.css("--muted"), accent=Utils.css("--amber");c.clearRect(0,0,w,h);
         if(!lastCircuit){c.fillStyle=line;c.font="15px system-ui";c.fillText("Configura resistencias y pulsa «Calcular circuito».",18,35);return;}
