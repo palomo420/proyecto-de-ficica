@@ -679,3 +679,8 @@ td:first-child {
     scroll-behavior: auto !important
   }
 }
+.chaos-canvas{height:430px;cursor:grab}
+.chaos-canvas:active{cursor:grabbing}
+.chaos-graph{height:200px}
+.param-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+@media (max-width:560px){.chaos-canvas{height:340px}}

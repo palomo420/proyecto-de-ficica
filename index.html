@@ -4,7 +4,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f5f7fb">
+  <meta name="theme-color" content="#f5f7fb" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#101725" media="(prefers-color-scheme: dark)">
   <title>Física en acción | Laboratorio interactivo</title>
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -24,6 +25,7 @@
     <button class="nav-link" data-view="oscillator"><span>〰️</span> Oscilaciones</button>
     <button class="nav-link" data-view="vectors"><span>➡️</span> Vectores</button>
     <button class="nav-link" data-view="circuits"><span>⚡</span> Circuitos eléctricos</button>
+    <button class="nav-link" data-view="chaos"><span>🌀</span> Péndulo doble (caos)</button>
     <p class="footnote" style="padding:16px 10px">Elige una herramienta para aprender haciendo.</p>
   </nav>
 
@@ -103,6 +105,18 @@
           <p class="muted">El simulador combina un modelo matemático, controles interactivos, actualización en tiempo
             real y dibujo en canvas.</p>
           <button class="btn primary" data-go="oscillator">Abrir simulador</button>
+        </article>
+        <article class="card guide-card accent-amber">
+          <div class="emoji" aria-hidden="true">🌀</div>
+          <h2>Péndulo doble (caos)</h2>
+          <p class="muted">Dos péndulos casi idénticos que terminan comportándose de forma totalmente distinta.</p>
+          <h3>Qué puedes hacer</h3>
+          <ul>
+            <li>Arrastrar el péndulo con el dedo o el ratón y soltarlo.</li>
+            <li>Cambiar longitudes, masas y gravedad.</li>
+            <li>Verificar la conservación de la energía y ver crecer la divergencia.</li>
+          </ul>
+          <button class="btn amber" data-go="chaos">Abrir simulador</button>
         </article>
       </div>
       <div class="guide-lower">
@@ -277,6 +291,7 @@
               <option value="dot">Producto punto (A · B)</option>
               <option value="cross">Producto cruz (A × B)</option>
               <option value="angle">Ángulo entre A y B</option>
+              <option value="direction">Dirección y sentido de A (2D)</option>
               <option value="projection">Proyección de A sobre B</option>
               <option value="unit">Vector unitario de A</option>
               <option value="magnitude">Magnitud de A</option>
@@ -446,6 +461,36 @@
           <p id="circuitScore" class="footnote">Aciertos: 0</p>
           <div id="circuitQuizSolution" class="solution"></div>
         </article>
+      </div>
+    </section>
+
+    <section class="view accent-amber" id="view-chaos" aria-labelledby="chaos-title">
+      <p class="eyebrow">Simulador · Mecánica no lineal</p>
+      <h1 id="chaos-title">Péndulo doble</h1>
+      <p class="lead">Sin aproximación de ángulo pequeño. El péndulo azul y el naranja parten con una diferencia de solo 0.001 rad en θ₁: observa cuánto tardan en separarse.</p>
+      <div class="tool-layout">
+        <aside class="card controls">
+          <div class="control-group"><div class="param-grid">
+            <div><label for="chL1">L₁ (m)</label><input type="number" id="chL1" min="0.1" max="50" step="0.1" value="1"></div>
+            <div><label for="chL2">L₂ (m)</label><input type="number" id="chL2" min="0.1" max="50" step="0.1" value="1"></div>
+            <div><label for="chM1">m₁ (kg)</label><input type="number" id="chM1" min="0.1" max="50" step="0.1" value="1"></div>
+            <div><label for="chM2">m₂ (kg)</label><input type="number" id="chM2" min="0.1" max="50" step="0.1" value="1"></div>
+            <div><label for="chG">g (m/s²)</label><input type="number" id="chG" min="0.1" max="50" step="0.01" value="9.81"></div>
+          </div></div>
+          <div class="button-row"><button class="btn amber" id="chaosPause">Pausar</button><button class="btn" id="chaosReset">Reiniciar</button></div>
+          <p class="footnote">Arrastra el péndulo en el lienzo para elegir la posición inicial; al soltarlo se reinicia la medición.</p>
+          <p class="message" id="chaosMsg" role="status" aria-live="polite"></p>
+          <details><summary>Modelo y fórmulas</summary><div class="formula-list">
+            <div class="formula">Ecuaciones de Lagrange para dos masas, integradas con Runge-Kutta de 4.º orden (16 pasos por cuadro).</div>
+            <div class="formula">T = ½m₁v₁² + ½m₂v₂² + m₂L₁L₂ω₁ω₂cos(θ₁−θ₂)</div>
+            <div class="formula">V = −g[(m₁+m₂)L₁cosθ₁ + m₂L₂cosθ₂] · E = T + V</div>
+          </div></details>
+        </aside>
+        <div class="workspace">
+          <div class="card canvas-card"><canvas id="chaosCanvas" class="chaos-canvas" aria-label="Péndulo doble arrastrable"></canvas></div>
+          <article class="card"><h2>Estado instantáneo</h2><div class="stats" id="chaosStats"></div></article>
+          <div class="card canvas-card"><h2>Divergencia entre los dos péndulos</h2><canvas id="chaosGraph" class="chaos-graph" aria-label="Gráfica de la separación angular contra el tiempo"></canvas></div>
+        </div>
       </div>
     </section>
   </main>

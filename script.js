@@ -35,7 +35,7 @@
 
     // Enrutador de vistas y comportamiento accesible del menú lateral.
     const Router = (() => {
-      const titles = { home:"Inicio / Guía", projectile:"Movimiento parabólico", oscillator:"Péndulo y masa-resorte", vectors:"Vectores", circuits:"Circuitos eléctricos" };
+      const titles = { home:"Inicio / Guía", projectile:"Movimiento parabólico", oscillator:"Péndulo y masa-resorte", vectors:"Vectores", circuits:"Circuitos eléctricos", chaos:"Péndulo doble" };
       let current = "home";
       function go(name) {
         if (!titles[name]) return;
@@ -49,6 +49,7 @@
         else oscillatorSim.stop();
         if (name === "vectors") VectorLab.draw();
         if (name === "circuits") CircuitLab.resize();
+        if (name === "chaos") ChaosLab.start(); else ChaosLab.stop();
       }
       return { go, get current(){ return current; } };
     })();
@@ -335,6 +336,10 @@
       $("vectorOperation").addEventListener("change",()=>{$("scalarGroup").classList.toggle("hidden",$("vectorOperation").value!=="scale");update();});
       $("vectorMethod").addEventListener("change",draw); $("componentsToggle").addEventListener("change",draw);
       function norm(v){return Math.hypot(...v);}
+      function calcularDireccionVector(x,y){
+        const grados=Math.atan2(y,x)*(180/Math.PI);
+        return grados<0?grados+360:grados;
+      }
       function calculate(){
         const op=$("vectorOperation").value, dim=$("vector3d").checked?3:2, A=vectors[0],B=vectors[1], vectorsUsed=vectors.map(v=>v.slice(0,dim));
         let result=null, scalar=null, explanation="";
@@ -345,12 +350,21 @@
         else if(op==="dot"){scalar=A.slice(0,dim).reduce((s,x,j)=>s+x*B[j],0);explanation=`A · B = ${A.slice(0,dim).map((x,j)=>`${Utils.fmt(x)}·${Utils.fmt(B[j])}`).join(" + ")}\nA · B = ${Utils.fmt(scalar)} (unidades²)`;}
         else if(op==="cross"){const a=[...A.slice(0,3)],b=[...B.slice(0,3)];result=[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];explanation=`A × B = (AyBz − AzBy, AzBx − AxBz, AxBy − AyBx)\nA × B = ${comp(result)}\n|A × B| = ${Utils.fmt(norm(result))}`;}
         else if(op==="angle"){const dot=A.slice(0,dim).reduce((s,x,j)=>s+x*B[j],0),den=norm(A.slice(0,dim))*norm(B.slice(0,dim));scalar=den?Math.acos(Math.max(-1,Math.min(1,dot/den)))*180/Math.PI:NaN;explanation=`cos θ = (A · B)/(|A||B|) = ${Utils.fmt(dot)}/(${Utils.fmt(norm(A.slice(0,dim)))}·${Utils.fmt(norm(B.slice(0,dim)))})\nθ = ${Utils.fmt(scalar)}°`;}
+        else if(op==="direction"){
+          const directions=["este","noreste","norte","noroeste","oeste","suroeste","sur","sureste"];
+          explanation=`Orientación de cada vector en el plano XY (desde el este, en sentido antihorario):\n\n${vectors.map((v,i)=>{
+            const [x,y]=v, magnitude=Math.hypot(x,y), label=names[i];
+            if(magnitude===0)return `${label} = (${Utils.fmt(x)}, ${Utils.fmt(y)})\nEs el vector nulo; no tiene dirección ni sentido.`;
+            const degrees=calcularDireccionVector(x,y), direction=directions[Math.round(degrees/45)%8];
+            return `${label} = (${Utils.fmt(x)}, ${Utils.fmt(y)})\nθ = atan2(${Utils.fmt(y)}, ${Utils.fmt(x)}) = ${Utils.fmt(degrees)}°\nOrientación: ${direction}.`;
+          }).join("\n\n")}`;
+        }
         else if(op==="projection"){const dot=A.slice(0,dim).reduce((s,x,j)=>s+x*B[j],0),den=B.slice(0,dim).reduce((s,x)=>s+x*x,0);result=den?B.slice(0,dim).map(x=>x*dot/den):Array(dim).fill(NaN);explanation=`proy_B A = [(A · B)/|B|²]B\n= [${Utils.fmt(dot)}/${Utils.fmt(den)}]${comp(B)}\n= ${comp(result)}`;}
         else if(op==="unit"){const m=norm(A.slice(0,dim));result=m?A.slice(0,dim).map(x=>x/m):Array(dim).fill(NaN);explanation=`Â = A/|A| = ${comp(A)}/${Utils.fmt(m)}\nÂ = ${comp(result)}`;}
         else {scalar=norm(A.slice(0,dim));explanation=`|A| = √(${A.slice(0,dim).map(x=>Utils.fmt(x)+"²").join(" + ")}) = ${Utils.fmt(scalar)}`;}
         return {op,result,scalar,explanation};
       }
-      function update(){const c=calculate();$("vectorSolution").textContent=c.explanation+(c.result?`\n\nResultado: ${compDisplay(c.result)}`:c.scalar!==null?`\n\nResultado: ${Utils.fmt(c.scalar)}${c.op==="angle"?"°":""}`:"");draw();}
+      function update(){const c=calculate();$("vectorSolution").textContent=c.explanation+(c.result?`\n\nResultado: ${compDisplay(c.result)}`:c.scalar!==null?`\n\nResultado: ${Utils.fmt(c.scalar)}${c.op==="angle"||c.op==="direction"?"°":""}`:"");draw();}
       function compDisplay(v){return `(${v.map(n=>Utils.fmt(n)).join(", ")})`;}
       function draw(){
         const {ctx:c,w,h}=Utils.setupCanvas(canvas), dark=matchMedia("(prefers-color-scheme: dark)").matches, fg=Utils.css("--muted"), grid=Utils.css("--line");
@@ -657,6 +671,105 @@
       newQuestion();
       window.addEventListener("resize",resize);
       return {resize};
+    })();
+
+    // Péndulo doble: sistema caótico integrado con RK4 y comparado con un gemelo casi idéntico.
+    const ChaosLab = (() => {
+      const $ = id => document.getElementById(id), cv = $("chaosCanvas"), gc = $("chaosGraph");
+      const st = { s: [], tr: [[], []], hist: [], t: 0, run: true, drag: false, on: false, E0: 0, w: 1, h: 1, last: 0, n: 0 };
+      const par = () => ({ L1: +$("chL1").value, L2: +$("chL2").value, m1: +$("chM1").value, m2: +$("chM2").value, g: +$("chG").value });
+      const valid = p => Object.values(p).every(v => Number.isFinite(v) && v > 0 && v <= 50);
+      const geom = p => ({ k: Math.min(st.w * .4, st.h * .45) / (p.L1 + p.L2), px: st.w / 2, py: st.h * .3 });
+      function deriv(p, a, b, wa, wb) {
+        const d = a - b, den = 2*p.m1 + p.m2 - p.m2*Math.cos(2*d);
+        return [wa, wb,
+          (-p.g*(2*p.m1+p.m2)*Math.sin(a) - p.m2*p.g*Math.sin(a-2*b) - 2*Math.sin(d)*p.m2*(wb*wb*p.L2 + wa*wa*p.L1*Math.cos(d))) / (p.L1*den),
+          2*Math.sin(d)*(wa*wa*p.L1*(p.m1+p.m2) + p.g*(p.m1+p.m2)*Math.cos(a) + wb*wb*p.L2*p.m2*Math.cos(d)) / (p.L2*den)];
+      }
+      function rk4(p, s, h) {
+        const at = (k, c) => deriv(p, s.a+c*h*k[0], s.b+c*h*k[1], s.wa+c*h*k[2], s.wb+c*h*k[3]);
+        const k1 = deriv(p, s.a, s.b, s.wa, s.wb), k2 = at(k1, .5), k3 = at(k2, .5), k4 = at(k3, 1);
+        ["a", "b", "wa", "wb"].forEach((key, i) => s[key] += h/6*(k1[i] + 2*k2[i] + 2*k3[i] + k4[i]));
+      }
+      function energy(p, s) {
+        const v1 = p.L1*s.wa, v2 = p.L2*s.wb;
+        const T = .5*p.m1*v1*v1 + .5*p.m2*(v1*v1 + v2*v2 + 2*p.L1*p.L2*s.wa*s.wb*Math.cos(s.a-s.b));
+        return T - p.g*((p.m1+p.m2)*p.L1*Math.cos(s.a) + p.m2*p.L2*Math.cos(s.b));
+      }
+      function pos(g, p, s) {
+        const x1 = g.px + p.L1*g.k*Math.sin(s.a), y1 = g.py + p.L1*g.k*Math.cos(s.a);
+        return [x1, y1, x1 + p.L2*g.k*Math.sin(s.b), y1 + p.L2*g.k*Math.cos(s.b)];
+      }
+      function setPose(a, b) {
+        const p = par(); st.s = [0, .001].map(e => ({ a: a + e, b, wa: 0, wb: 0 }));
+        st.tr = [[], []]; st.hist = []; st.t = 0; if (valid(p)) st.E0 = energy(p, st.s[0]);
+      }
+      function aim(x, y) {
+        const p = par(); if (!valid(p)) return;
+        const g = geom(p), l1 = p.L1*g.k, l2 = p.L2*g.k, dx = x - g.px, dy = y - g.py;
+        const d = Math.max(Math.abs(l1-l2) + .5, Math.min(Math.hypot(dx, dy), l1 + l2 - .5));
+        const dl = Math.acos(Math.max(-1, Math.min(1, (d*d - l1*l1 - l2*l2) / (2*l1*l2))));
+        const a = Math.atan2(dx, dy) - Math.atan2(l2*Math.sin(dl), l1 + l2*Math.cos(dl));
+        setPose(a, a + dl);
+      }
+      const xy = e => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+      cv.addEventListener("pointerdown", e => { cv.setPointerCapture(e.pointerId); st.drag = true; aim(...xy(e)); });
+      cv.addEventListener("pointermove", e => { if (st.drag) aim(...xy(e)); });
+      cv.addEventListener("pointerup", () => { st.drag = false; });
+      cv.addEventListener("pointercancel", () => { st.drag = false; });
+      $("chaosPause").addEventListener("click", () => { st.run = !st.run; $("chaosPause").textContent = st.run ? "Pausar" : "Reanudar"; });
+      $("chaosReset").addEventListener("click", () => setPose(2.2, 2.6));
+      ["chL1", "chL2", "chM1", "chM2", "chG"].forEach(id => $(id).addEventListener("input", () => {
+        const p = par(), ok = valid(p); $("chaosMsg").textContent = ok ? "" : "Usa valores entre 0 y 50 (mayores que cero).";
+        if (ok) st.E0 = energy(p, st.s[0]);
+      }));
+      function drawScene(p) {
+        const { ctx, w, h } = Utils.setupCanvas(cv); st.w = w; st.h = h; ctx.clearRect(0, 0, w, h);
+        const g = geom(p), cols = [Utils.css("--blue"), Utils.css("--amber")], ink = Utils.css("--text");
+        st.s.forEach((s, i) => {
+          ctx.strokeStyle = cols[i]; ctx.globalAlpha = .55; ctx.lineWidth = 2; ctx.beginPath();
+          st.tr[i].forEach((q, j) => j ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1])); ctx.stroke(); ctx.globalAlpha = 1;
+        });
+        st.s.forEach((s, i) => {
+          const [x1, y1, x2, y2] = pos(g, p, s);
+          ctx.strokeStyle = ink; ctx.lineWidth = i ? 1.5 : 3; ctx.globalAlpha = i ? .6 : 1;
+          ctx.beginPath(); ctx.moveTo(g.px, g.py); ctx.lineTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); ctx.globalAlpha = 1;
+          [[x1, y1, 5 + p.m1], [x2, y2, 5 + p.m2]].forEach(([x, y, r]) => { ctx.fillStyle = cols[i]; ctx.beginPath(); ctx.arc(x, y, Math.min(r, 16), 0, 7); ctx.fill(); });
+        });
+        ctx.fillStyle = ink; ctx.beginPath(); ctx.arc(g.px, g.py, 5, 0, 7); ctx.fill();
+      }
+      function drawGraph() {
+        const { ctx, w, h } = Utils.setupCanvas(gc); ctx.clearRect(0, 0, w, h);
+        const H = st.hist, muted = Utils.css("--muted"); if (H.length < 2) return;
+        const t1 = Math.max(20, st.t), t0 = t1 - 20, ymax = Math.max(1, ...H.map(q => q[1])) * 1.1, L = 38, B = 22;
+        ctx.strokeStyle = Utils.css("--line"); ctx.fillStyle = muted; ctx.font = "11px system-ui"; ctx.lineWidth = 1;
+        ctx.strokeRect(L, 6, w - L - 8, h - B - 6); ctx.fillText(Utils.fmt(ymax, 0) + "°", 2, 16); ctx.fillText("0", 24, h - B); ctx.fillText("t (s)", w - 38, h - 6);
+        ctx.strokeStyle = Utils.css("--danger"); ctx.lineWidth = 2; ctx.beginPath(); let first = true;
+        H.forEach(([t, d]) => { if (t < t0) return; const x = L + (t - t0) / 20 * (w - L - 8), y = h - B - d / ymax * (h - B - 6); first ? ctx.moveTo(x, y) : ctx.lineTo(x, y); first = false; });
+        ctx.stroke();
+      }
+      function stats(p) {
+        const E = energy(p, st.s[0]), dr = st.E0 ? (E - st.E0) / Math.abs(st.E0) * 100 : 0, dg = 180 / Math.PI, s = st.s[0];
+        const items = [["Energía total E", Utils.fmt(E, 3) + " J"], ["Deriva de energía", Utils.fmt(dr, 4) + " %"], ["θ₁ (azul)", Utils.fmt(s.a * dg, 1) + "°"], ["θ₂ (azul)", Utils.fmt(s.b * dg, 1) + "°"],
+          ["|Δθ₂| entre gemelos", Utils.fmt(Math.abs(st.s[1].b - s.b) * dg, 3) + "°"], ["Tiempo t", Utils.fmt(st.t, 1) + " s"]];
+        $("chaosStats").innerHTML = items.map(([n, v]) => `<div class="stat"><span>${n}</span><strong>${v}</strong></div>`).join("");
+      }
+      function tick(now) {
+        if (!st.on) return; requestAnimationFrame(tick);
+        const dt = Math.min((now - st.last) / 1000 || .016, .033); st.last = now; const p = par();
+        if (valid(p)) {
+          if (st.run && !st.drag) {
+            for (let i = 0; i < 16; i++) st.s.forEach(s => rk4(p, s, dt / 16));
+            st.t += dt; const g = geom(p);
+            st.s.forEach((s, i) => { const q = pos(g, p, s); st.tr[i].push([q[2], q[3]]); if (st.tr[i].length > 380) st.tr[i].shift(); });
+            st.hist.push([st.t, Math.abs(st.s[1].b - st.s[0].b) * 180 / Math.PI]); if (st.hist.length > 4000) st.hist.shift();
+          }
+          drawScene(p); drawGraph(); if (++st.n % 6 === 0) stats(p);
+        }
+      }
+      function start() { if (st.on) return; st.on = true; st.last = performance.now(); if (!st.s.length) setPose(2.2, 2.6); requestAnimationFrame(tick); }
+      function stop() { st.on = false; }
+      return { start, stop };
     })();
     // Estado inicial y primer dibujo del diagrama eléctrico de ejemplo.
     document.getElementById("calculateCircuit").click();

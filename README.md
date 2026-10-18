@@ -6,7 +6,8 @@ Laboratorio web interactivo para explorar conceptos de física mediante simulaci
 
 - **Movimiento parabólico:** trayectoria con condiciones iniciales configurables, gravedad planetaria y resistencia del aire.
 - **Péndulo y masa-resorte:** animación, periodo, posición-tiempo y energías en función de sus parámetros.
-- **Vectores:** edición gráfica, operaciones vectoriales y ejercicios aleatorios.
+- **Vectores:** edición gráfica, operaciones vectoriales, cálculo de dirección y sentido en 2D, y ejercicios aleatorios.
+- **Péndulo doble (caos):** integración RK4 sin aproximación de ángulo pequeño, posición inicial arrastrable, conservación de la energía y divergencia entre dos péndulos que parten con una diferencia de 0.001 rad.
 - **Circuitos eléctricos:** crea redes propias en serie o paralelo con resistencias y focos; simula el interruptor, el flujo de corriente, voltajes y potencias. También incluye leyes de Kirchhoff, ley de Ohm y problemas.
 
 ## Ejecutar
