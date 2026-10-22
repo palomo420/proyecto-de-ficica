@@ -14,8 +14,23 @@
   --radius: 18px;
 }
 
+:root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #101725;
+    --surface: #182234;
+    --surface-2: #202d42;
+    --text: #edf3ff;
+    --muted: #a8b4c7;
+    --line: #314057;
+    --shadow: 0 12px 34px #0004;
+    --blue: #69a8ff;
+    --green: #57d0a2;
+    --amber: #ffc15a;
+    --danger: #ff7b88;
+}
+
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme]) {
     color-scheme: dark;
     --bg: #101725;
     --surface: #182234;

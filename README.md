@@ -17,7 +17,7 @@ No requiere instalación de dependencias ni proceso de compilación. Abre `index
 ## Tecnologías y conceptos de desarrollo
 
 - HTML semántico para estructurar las vistas y controles.
-- CSS adaptable a escritorio y móvil, con temas claro y oscuro según el sistema.
+- CSS adaptable a escritorio y móvil, con temas claro y oscuro según el sistema o la elección guardada del usuario.
 - JavaScript para los modelos físicos, validación de parámetros y navegación entre simuladores.
 - Canvas 2D para las animaciones, los diagramas y las gráficas.
 

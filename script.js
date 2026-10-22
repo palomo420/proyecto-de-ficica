@@ -1,4 +1,31 @@
 "use strict";
+    (() => {
+      const root = document.documentElement, toggle = document.getElementById("themeToggle");
+      const themeColor = document.getElementById("themeColor");
+      const savedTheme = localStorage.getItem("theme");
+      if (savedTheme === "light" || savedTheme === "dark") root.dataset.theme = savedTheme;
+      function isDark() {
+        return root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+      }
+      function updateButton() {
+        const dark = isDark(), label = `Cambiar a modo ${dark ? "claro" : "oscuro"}`;
+        toggle.textContent = dark ? "☀️" : "🌙";
+        toggle.setAttribute("aria-label", label);
+        toggle.setAttribute("title", label);
+        toggle.setAttribute("aria-pressed", String(dark));
+        themeColor.content = dark ? "#101725" : "#f5f7fb";
+      }
+      toggle.addEventListener("click", () => {
+        root.dataset.theme = isDark() ? "light" : "dark";
+        localStorage.setItem("theme", root.dataset.theme);
+        updateButton();
+      });
+      if (!root.dataset.theme) {
+        matchMedia("(prefers-color-scheme: dark)").addEventListener("change", updateButton);
+      }
+      updateButton();
+    })();
+
     // Utilidades comunes: formato, lienzos de alta densidad y dibujo de flechas.
     const Utils = {
       fmt(n, digits = 2) { return Number.isFinite(n) ? Number(n).toFixed(digits) : "—"; },
@@ -367,7 +394,7 @@
       function update(){const c=calculate();$("vectorSolution").textContent=c.explanation+(c.result?`\n\nResultado: ${compDisplay(c.result)}`:c.scalar!==null?`\n\nResultado: ${Utils.fmt(c.scalar)}${c.op==="angle"||c.op==="direction"?"°":""}`:"");draw();}
       function compDisplay(v){return `(${v.map(n=>Utils.fmt(n)).join(", ")})`;}
       function draw(){
-        const {ctx:c,w,h}=Utils.setupCanvas(canvas), dark=matchMedia("(prefers-color-scheme: dark)").matches, fg=Utils.css("--muted"), grid=Utils.css("--line");
+        const {ctx:c,w,h}=Utils.setupCanvas(canvas), fg=Utils.css("--muted"), grid=Utils.css("--line");
         c.clearRect(0,0,w,h);const origin={x:w*.5+offset.x,y:h*.54+offset.y}, scale=viewScale, X=x=>origin.x+x*scale,Y=y=>origin.y-y*scale;
         c.strokeStyle=grid;c.lineWidth=1;for(let x=origin.x%scale;x<w;x+=scale){c.beginPath();c.moveTo(x,0);c.lineTo(x,h);c.stroke();}for(let y=origin.y%scale;y<h;y+=scale){c.beginPath();c.moveTo(0,y);c.lineTo(w,y);c.stroke();}
         c.strokeStyle=fg;c.beginPath();c.moveTo(0,origin.y);c.lineTo(w,origin.y);c.moveTo(origin.x,0);c.lineTo(origin.x,h);c.stroke();c.fillStyle=fg;c.font="11px system-ui";for(let x=origin.x+scale;x<w;x+=scale)c.fillText(`${Math.round((x-origin.x)/scale)}`,x-4,origin.y+14);for(let y=origin.y-scale;y>0;y-=scale)c.fillText(`${Math.round((origin.y-y)/scale)}`,origin.x+5,y+4);c.fillText("x",w-14,origin.y-8);c.fillText("y",origin.x+8,12);
@@ -378,7 +405,7 @@
           const R=result.result, isSum=result.op==="sum";
           if(isSum && $("vectorMethod").value==="polygon" && vectors.length>=2){let x=0,y=0;c.save();vectors.forEach((v,i)=>{const nx=x+v[0],ny=y+v[1];Utils.arrow(c,X(x),Y(y),X(nx),Y(ny),colors[i],2);x=nx;y=ny;});c.restore();}
           if(isSum && $("vectorMethod").value==="parallelogram" && vectors.length===2){const [a,b]=vectors;c.strokeStyle=colors[1];c.setLineDash([5,4]);c.beginPath();c.moveTo(X(a[0]),Y(a[1]));c.lineTo(X(a[0]+b[0]),Y(a[1]+b[1]));c.moveTo(X(b[0]),Y(b[1]));c.lineTo(X(a[0]+b[0]),Y(a[1]+b[1]));c.stroke();c.setLineDash([]);}
-          Utils.arrow(c,origin.x,origin.y,X(R[0]),Y(R[1]),dark?"#ff7b88":"#c43b48",4);c.fillStyle=dark?"#ff7b88":"#c43b48";c.font="bold 13px system-ui";c.fillText("R",X(R[0])+7,Y(R[1])-7);
+          Utils.arrow(c,origin.x,origin.y,X(R[0]),Y(R[1]),Utils.css("--danger"),4);c.fillStyle=Utils.css("--danger");c.font="bold 13px system-ui";c.fillText("R",X(R[0])+7,Y(R[1])-7);
         }
       }
       function pointerPos(e){const r=canvas.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top};}
